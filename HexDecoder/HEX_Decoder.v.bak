@@ -1,0 +1,29 @@
+
+
+module HEX_Decoder (SW, HEX0);
+	input [3:0] SW;
+	output [6:0] HEX0;
+	
+	//hexDecoder hd(SW[0], SW[1], SW[2], SW[3], HEX0);
+	hexDecoder hd(SW, HEX0);
+
+endmodule // HEX_Decoder
+
+//module hexDecoder (input c0, c1, c2, c3,
+//						 output f);
+module hexDecoder (c, h);
+
+	input [3:0] c;
+	output [6:0] h;
+				 
+	/*assign f[0] = (c0 & !c1 & !c2 & !c3)
+				| (!c0 & !c1 & c2 & !c3)
+				| (c0 & c1 & !c2 & c3)
+				| (c0 & !c1 & c2 & c3);*/
+	assign h[0] = (c[0] & !c[1] & !c[2] & !c[3])
+				| (!c[0] & !c[1] & c[2] & !c[3])
+				| (c[0] & c[1] & !c[2] & c[3])
+				| (c[0] & !c[1] & c[2] & c[3]);
+	
+
+endmodule // hexDecoder
