@@ -68,8 +68,7 @@ module fill
 	// for the VGA controller, in addition to any other functionality your design may require.
 	ControlPath cp (.Clock(CLOCK_50), .Reset_n(KEY[0]), .Clear(~KEY[2]), .LoadX(~KEY[3]), 
 							.Data_In(SW[6:0]), .C_In(SW[9:7]), .X_Out(x), .Y_Out(y),
-							.C_Out(colour), .Plot(~KEY[1]), .PlotToVGA(WriteEn));
-	
+							.C_Out(colour), .Plot(~KEY[1]), .PlotToVGA(writeEn));
 	
 endmodule
 
@@ -149,6 +148,7 @@ module Control (Clock, Plot, Clear, Reset_n, LoadX, plot_to_vga,
 		
 		ld_x = 0;
 		ld_y = 0;
+		ld_c = 0;
 		plot_to_vga = 0;
 		x_inc = 2'b0;
 		y_inc = 2'b0;
@@ -184,8 +184,10 @@ module Control (Clock, Plot, Clear, Reset_n, LoadX, plot_to_vga,
 				frc_y = y_clr_count;
 				frc_c = 3'b0;
 				y_clr_count = y_clr_count + 1;
-				if (y_clr_count >= 7'd120)
+				if (y_clr_count >= 7'd120) begin
+					y_clr_count = 0;
 					x_clr_count = x_clr_count + 1;
+				end
 			end
 		endcase
 		

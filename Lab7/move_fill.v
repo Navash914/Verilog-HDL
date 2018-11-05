@@ -3,6 +3,7 @@ module move_fill
 	(
 		CLOCK_50,						//	On Board 50 MHz
 		SW,// Your inputs and outputs here
+		KEY,
 		// The ports below are for the VGA output.  Do not change.
 		VGA_CLK,   						//	VGA Clock
 		VGA_HS,							//	VGA H_SYNC
@@ -16,6 +17,7 @@ module move_fill
 
 	input			CLOCK_50;				//	50 MHz
 	input [9:7] SW;
+	input [0:0] KEY;
 	// Declare your inputs and outputs here
 	// Do not change the following outputs
 	output			VGA_CLK;   				//	VGA Clock
@@ -27,13 +29,16 @@ module move_fill
 	output	[7:0]	VGA_G;	 				//	VGA Green[7:0]
 	output	[7:0]	VGA_B;   				//	VGA Blue[7:0]
 	
+	wire resetn;
+	assign resetn = KEY[0];
+	
 	wire [2:0] colour;
 	wire [7:0] x;
 	wire [6:0] y;
-	wire WriteEn;
+	wire writeEn;
 	
 	ControlPath2 cp2 (.Clock(CLOCK_50), .C_In(SW[9:7]), .X_Out(x), .Y_Out(y),
-							.C_Out(colour), .PlotToVGA(WriteEn));
+							.C_Out(colour), .PlotToVGA(writeEn));
 	
 	vga_adapter VGA2(
 			.resetn(resetn),
@@ -94,9 +99,10 @@ module ControlPath2 (Clock, C_In, X_Out, Y_Out, C_Out, PlotToVGA);
 	assign Frequency = 26'd60;
 	assign Max = (ClockFrequency / Frequency) - 1'b1;
 	
-	RateController rc (.Clock(CLOCK_50), .Enable(1), .Clear_b(Clear), .ParLoad(0), .D(26'b0), .MaxValue(Max), .Q(RateDivider));
+	RateController rc (.Clock(Clock), .Enable(1), .Clear_b(Clear), .ParLoad(0), .D(26'b0), .MaxValue(Max), .Q(RateDivider));
 	assign FrameEnable = RateDivider == 26'b0 ? 1 : 0;
-	RateController fc (.Clock(CLOCK_50), .Enable(FrameEnable), .Clear_b(Clear), .ParLoad(0), .D(26'b0), .MaxValue(4'b1111), .Q(FrameDivider));
+	
+	RateController fc (.Clock(Clock), .Enable(FrameEnable), .Clear_b(Clear), .ParLoad(0), .D(4'b0), .MaxValue(4'b1111), .Q(FrameDivider));
 	assign Update = FrameDivider == 4'b1111 ? 1 : 0;
 	
 	wire [7:0] X_Pos;
@@ -143,7 +149,6 @@ module Control2 (Clock, Update, X_Pos, Y_Pos, Right, Down,
 	 reg [3:0] current_state, next_state;
 	 reg [3:0] inc_count;
 	 reg right, down;
-	 
     
     // Next state logic aka our state table
     always@(posedge Clock)
@@ -167,17 +172,19 @@ module Control2 (Clock, Update, X_Pos, Y_Pos, Right, Down,
 		
 		ld_x = 0;
 		ld_y = 0;
+		ld_c = 0;
 		plot_to_vga = 0;
 		x_inc = 2'b0;
 		y_inc = 2'b0;
 		frc = 0;
-		clr = 1;
+		clr = 0;
 		reset = 0;
 		case (current_state)
 			S_RESET_ALL: begin
 				reset = 1;
 				right <= 0;
 				down <= 1;
+				clr = 1;
 			end
 			S_CLEAR: inc_count = 4'd0;
 			S_CLEAR_INCR: begin
