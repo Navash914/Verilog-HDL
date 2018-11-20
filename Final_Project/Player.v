@@ -1,18 +1,23 @@
 module Player (clk, turn, reset, Right, Down, C_In, ld_x, ld_y, ld_back, ld_spot,
 						x_mv, y_mv, x_inc, y_inc, X_Out, Y_Out, C_Out, spot, moveSpaces,
-						hex);
+						ld_score, ld_progress, sc_neg, scoreChange, score, progress
+						/*hex*/);
 	input clk, reset, turn, Right, Down;
-	input ld_x, ld_y, ld_back, ld_spot;
-	input x_mv, y_mv;
+	input ld_x, ld_y, ld_back, ld_spot, ld_score, ld_progress;
+	input x_mv, y_mv, sc_neg;
+	input [8:0] scoreChange;
 	input [23:0] C_In;
 	input [2:0] x_inc, y_inc;
 	
-	output [6:0] hex;
+	//output [6:0] hex;
 	output [23:0] C_Out;
 	output [7:0] Y_Out;
 	output [8:0] X_Out;
 	output reg [5:0] moveSpaces;
 	output reg [4:0] spot;
+	
+	output reg [31:0] progress;
+	output reg [12:0] score;
 	
 	reg [8:0] x;
 	reg [7:0] y;
@@ -67,6 +72,8 @@ module Player (clk, turn, reset, Right, Down, C_In, ld_x, ld_y, ld_back, ld_spot
 			y <= y_rst;
 			c <= C_In;
 			spot <= 0;
+			progress <= 0;
+			score <= 0;
 			if (player == 0)
 				moveSpaces = 6'd28;
 			else if (player == 1)
@@ -93,8 +100,23 @@ module Player (clk, turn, reset, Right, Down, C_In, ld_x, ld_y, ld_back, ld_spot
 				//if (spot >= 6'd39)
 				//	spot <= 0;
 				//else
-					spot = spot + 1'b1;
+					spot <= spot + 1'b1;
+					//progress[spot] = 1;
 			end
+			
+			if (ld_score) begin
+				if (sc_neg) begin
+					if (scoreChange > score)
+						score = 0;
+					else
+						score = score - scoreChange;
+				end else
+					score = score + scoreChange;
+			end
+			
+			if (ld_progress)
+				progress[spot] <= 1;
+			
 			case (spot)
 				5'd0: begin
 					if (player == 0)
@@ -181,7 +203,7 @@ module Player (clk, turn, reset, Right, Down, C_In, ld_x, ld_y, ld_back, ld_spot
 		end
 	end
 	
-	HEX_Decoder h (spot[3:0], hex);
+	//HEX_Decoder h (spot[3:0], hex);
 	
 	assign X_Out = x + x_inc;
 	assign Y_Out = y + y_inc;

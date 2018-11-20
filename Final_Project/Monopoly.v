@@ -74,13 +74,13 @@ module Monopoly (
 	wire [91:0] bd_in, bd_out;
 	wire bd_wren;
 	
-	ram40x92 board_data (
+	/*ram40x92 board_data (
 					.address		(bd_addr),
 					.clock		(CLOCK_50),
 					.data			(bd_in),
 					.wren			(bd_wren),
 					.q				(bd_out)
-				);
+				);*/
 				
 	wire [15:0] bback_addr;
 	//wire [12:0] bback_addr;
