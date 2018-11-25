@@ -2,10 +2,10 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 							ld_x, ld_y, ld_back, ld_spot, x_mv, y_mv, playerTurn, x_inc, y_inc,
 							moveSpaces, scoreChange, ld_score, ld_progress, sc_neg, playerProgress,
 							ld_dp, sc_clr, dp_x_inc, dp_y_inc, playerScore, dg, ld_dp_p,
-							sc_dg_0, sc_dg_1, sc_dg_2, sc_dg_3,
+							sc_dg_0, sc_dg_1, sc_dg_2, sc_dg_3, fast_fwd, draw_dice, dice_clr, dice_num,
 							hex, hex2
 							);
-	input clk, Input;
+	input clk, Input, fast_fwd;
 	input [31:0] playerProgress;
 	input [12:0] playerScore;
 	input [5:0] moveSpaces;
@@ -23,8 +23,11 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 	output reg [2:0] x_inc, y_inc;
 	output reg [4:0] dp_x_inc, dp_y_inc;
 	output reg [1:0] dg;
+	output reg draw_dice, dice_clr, dice_num;
 	
-	
+	reg [3:0] finished;
+	reg frc_change_turn;
+	reg ffwd;
 	wire [4:0] scorePos = 5'd20;
 	wire [4:0] scoreNeg = 5'd20;
 	wire [2:0] max = d1 > d2 ? d1 : d2;
@@ -41,6 +44,53 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 	assign digit[7] = 49'b0111110_0000010_0000010_0000100_0001000_0001000_0001000;
 	assign digit[8] = 49'b0011100_0100010_0100010_0011100_0100010_0100010_0011100;
 	assign digit[9] = 49'b0011100_0100010_0100010_0011110_0000010_0100010_0011100;
+	
+	wire [288:0] dice [7];
+	
+	assign dice[1] = { {17{1'b1}}, 
+							 {6{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {6{1'b0}}, {3{1'b1}}, {6{1'b0}}, 1'b1}}, 
+							 {6{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {17{1'b1}} };
+	assign dice[2] = { {17{1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {2{1'b0}}, {3{1'b1}}, {10{1'b0}}, 1'b1}}, 
+							 {5{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {10{1'b0}}, {3{1'b1}}, {2{1'b0}}, 1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {17{1'b1}} };
+	assign dice[3] = { {17{1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {10{1'b0}}, {3{1'b1}}, {2{1'b0}}, 1'b1}}, 
+							 {1'b1, {15{1'b0}}, 1'b1}, 
+							 {3{1'b1, {6{1'b0}}, {3{1'b1}}, {6{1'b0}}, 1'b1}}, 
+							 {1'b1, {15{1'b0}}, 1'b1}, 
+							 {3{1'b1, {2{1'b0}}, {3{1'b1}}, {10{1'b0}}, 1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {17{1'b1}} };
+	assign dice[4] = { {17{1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {2{1'b0}}, {3{1'b1}}, {5{1'b0}}, {3{1'b1}}, {2{1'b0}}, 1'b1}}, 
+							 {5{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {2{1'b0}}, {3{1'b1}}, {5{1'b0}}, {3{1'b1}}, {2{1'b0}}, 1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {17{1'b1}} };
+	assign dice[5] = { {17{1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {2{1'b0}}, {3{1'b1}}, {5{1'b0}}, {3{1'b1}}, {2{1'b0}}, 1'b1}}, 
+							 {1'b1, {15{1'b0}}, 1'b1},
+							 {3{1'b1, {6{1'b0}}, {3{1'b1}}, {6{1'b0}}, 1'b1}}, 
+							 {1'b1, {15{1'b0}}, 1'b1}, 
+							 {3{1'b1, {2{1'b0}}, {3{1'b1}}, {5{1'b0}}, {3{1'b1}}, {2{1'b0}}, 1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {17{1'b1}} };
+	assign dice[6] = { {17{1'b1}}, 
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {2{1'b0}}, {3{1'b1}}, 1'b0, {3{1'b1}}, 1'b0, {3{1'b1}}, {2{1'b0}}, 1'b1}}, 
+							 {5{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {3{1'b1, {2{1'b0}}, {3{1'b1}}, 1'b0, {3{1'b1}}, 1'b0, {3{1'b1}}, {2{1'b0}}, 1'b1}},
+							 {2{1'b1, {15{1'b0}}, 1'b1}}, 
+							 {17{1'b1}} };
 	
 	wire [8:0] spotScores [32];
 	
@@ -76,7 +126,7 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 	assign frameClkReset = f_clk_reset | reset;
 	
 	wire [25:0] ClockFrequency = 26'd50000000;
-	wire [25:0] Frequency = 26'd60;
+	wire [25:0] Frequency = ffwd ? 26'd600 : 26'd60;
 	wire [25:0] Max = (ClockFrequency / Frequency);
 	wire [25:0] RateDivider;
 	
@@ -87,43 +137,54 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 								
 	assign frameDivider = (frameClkEnable && RateDivider == Max) ? 1 : 0;
 
-	localparam  S_RESET_ALL				= 6'd0,
-					S_WAIT_FOR_INPUT     = 6'd1,
-					S_WAIT_FOR_INPUT_OFF	= 6'd17,
-					S_ROLL_DICE				= 6'd2,
-					S_START_MOVE			= 6'd3,
-					S_CLEAR   				= 6'd4,
-					S_CLEAR_INCR			= 6'd5,
-					S_CLEAR_END				= 6'd6,
-					S_UPDATE_DIR			= 6'd7,
-					S_START_FRAME_CLK		= 6'd16,
-					S_WAIT_0					= 6'd18,
-					S_WAIT_1					= 6'd19,
-					S_WAIT_2					= 6'd20,
-					S_UPDATE_POS			= 6'd8,
-               S_PLOT        			= 6'd9,
-					S_PLOT_INCR				= 6'd10,
-					S_PLOT_END				= 6'd11,
-					S_RESET_COUNT			= 6'd12,
-					S_END_MOVE				= 6'd13,
-					S_WAIT_FOR_CHANGES	= 6'd34,
-					S_ACTION_AT_STOP		= 6'd14,
-					S_WAIT_FOR_CHANGES_2	= 6'd35,
-					S_LOAD_SCORE			= 6'd33,
-					S_LOAD_PROGRESS		= 6'd36,
-					S_PLOT_PROGRESS		= 6'd21,
-					S_PLOT_PROGRESS_INCR	= 6'd22,
-					S_PLOT_PROGRESS_END	= 6'd23,
-					S_CLEAR_SCORE			= 6'd24,
-					S_CLEAR_SCORE_INCR	= 6'd25,
-					S_CLEAR_SCORE_END		= 6'd26,
-					S_PLOT_SC_DIG_0		= 6'd27,
-					S_PLOT_SC_DIG_1		= 6'd28,
-					S_PLOT_SC_DIG_2		= 6'd29,
-					S_PLOT_SC_DIG_3		= 6'd30,
-					S_PLOT_SC_INCR			= 6'd31,
-					S_PLOT_SC_END			= 6'd32,
-					S_CHANGE_PLAYER		= 6'd15;
+	localparam  S_RESET_ALL					= 6'd0,
+					S_WAIT_FOR_INPUT     	= 6'd1,
+					S_WAIT_FOR_INPUT_OFF		= 6'd17,
+					S_ROLL_DICE					= 6'd2,
+					S_PLOT_D1					= 6'd40,
+					S_PLOT_D_INCR				= 6'd41,
+					S_PLOT_D_END				= 6'd42,
+					S_PLOT_D2					= 6'd43,
+					S_CLEAR_D1					= 6'd46,
+					S_CLEAR_D_INCR				= 6'd47,
+					S_CLEAR_D_END				= 6'd48,
+					S_CLEAR_D2					= 6'd49,
+					S_START_MOVE				= 6'd3,
+					S_CLEAR	   				= 6'd4,
+					S_CLEAR_INCR				= 6'd5,
+					S_CLEAR_END					= 6'd6,
+					S_UPDATE_DIR				= 6'd7,
+					S_START_FRAME_CLK			= 6'd16,
+					S_WAIT_0						= 6'd18,
+					S_WAIT_1						= 6'd19,
+					S_WAIT_2						= 6'd20,
+					S_UPDATE_POS				= 6'd8,
+               S_PLOT	        			= 6'd9,
+					S_PLOT_INCR					= 6'd10,
+					S_PLOT_END					= 6'd11,
+					S_RESET_COUNT				= 6'd12,
+					S_END_MOVE					= 6'd13,
+					S_WAIT_FOR_CHANGES		= 6'd34,
+					S_ACTION_AT_STOP			= 6'd14,
+					S_WAIT_FOR_CHANGES_2		= 6'd35,
+					S_LOAD_SCORE				= 6'd33,
+					S_LOAD_PROGRESS			= 6'd36,
+					S_PLOT_PROGRESS			= 6'd21,
+					S_PLOT_PROGRESS_INCR		= 6'd22,
+					S_PLOT_PROGRESS_END		= 6'd23,
+					S_CLEAR_SCORE				= 6'd24,
+					S_CLEAR_SCORE_INCR		= 6'd25,
+					S_CLEAR_SCORE_END			= 6'd26,
+					S_PLOT_SC_DIG_0			= 6'd27,
+					S_PLOT_SC_DIG_1			= 6'd28,
+					S_PLOT_SC_DIG_2			= 6'd29,
+					S_PLOT_SC_DIG_3			= 6'd30,
+					S_PLOT_SC_INCR				= 6'd31,
+					S_PLOT_SC_END				= 6'd32,
+					S_CHANGE_PLAYER			= 6'd15,
+					S_CHECK_CHANGE_PLAYER	= 6'd39,
+					S_CHECK_GAME_END			= 6'd37,
+					S_GAME_END					= 6'd38;
 					
 	 wire [4:0] cs = current_state;
 	 wire [3:0] mc = moveCount;
@@ -134,6 +195,7 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 	 reg [5:0] inc_count;
 	 reg [4:0] clr_inc_count_x;
 	 reg [2:0] clr_inc_count_y;
+	 reg [4:0] dice_inc_count_x, dice_inc_count_y;
 	 reg [2:0] sc_inc_count_x, sc_inc_count_y;
 	 reg [2:0] prog_inc_count;
 	 reg [2:0] d1, d2;
@@ -143,15 +205,28 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 	 reg isClear;
 	 reg drawProgress;
 	 reg [48:0] sc_digit;
+	 reg [288:0] dice_digit;
     
     // Next state logic aka our state table
     always@(posedge clk)
     begin
 		case (current_state)
 			 S_RESET_ALL: next_state = S_PLOT;
-			 S_WAIT_FOR_INPUT: next_state = Input ? S_WAIT_FOR_INPUT_OFF : S_WAIT_FOR_INPUT;
+			 S_WAIT_FOR_INPUT: next_state = ffwd ? S_ROLL_DICE : Input ? S_WAIT_FOR_INPUT_OFF : S_WAIT_FOR_INPUT;
 			 S_WAIT_FOR_INPUT_OFF: next_state = Input ? S_WAIT_FOR_INPUT_OFF : S_ROLL_DICE;
-			 S_ROLL_DICE: next_state = S_START_MOVE;
+			 S_ROLL_DICE: next_state = S_CLEAR_D1;
+			 
+			 S_PLOT_D1: next_state = S_PLOT_D_INCR;
+			 S_PLOT_D2: next_state = S_PLOT_D_INCR;
+			 S_PLOT_D_INCR: next_state = S_PLOT_D_END;
+			 S_PLOT_D_END: next_state = dice_inc_count_x != 0 || dice_inc_count_y != 0 ? S_PLOT_D_INCR : dice_num == 0 ? S_PLOT_D2 : S_START_MOVE;
+			 
+			 S_CLEAR_D1: next_state = S_CLEAR_D_INCR;
+			 S_CLEAR_D2: next_state = S_CLEAR_D_INCR;
+			 S_CLEAR_D_INCR: next_state = S_CLEAR_D_END;
+			 S_CLEAR_D_END: next_state = dice_inc_count_x != 0 || dice_inc_count_y != 0 ? S_CLEAR_D_INCR : dice_num == 0 ? S_CLEAR_D2 : S_PLOT_D1;
+			 
+			 
 			 /*S_START_MOVE: next_state = S_CLEAR;
 			 S_CLEAR: next_state = S_CLEAR_INCR;
 			 S_CLEAR_INCR: next_state = S_CLEAR_END;
@@ -175,7 +250,16 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 			 S_WAIT_1: next_state = S_WAIT_2;
 			 S_WAIT_2: next_state = isClear ? S_CLEAR_END : S_PLOT_END;
 			 S_RESET_COUNT: next_state = reset ? S_CHANGE_PLAYER : pixelsMoved >= (moveSpaces - 1'b1) ? S_END_MOVE : S_START_FRAME_CLK;
-			 S_END_MOVE: next_state = moveCount > 4'b0 ? S_START_MOVE : S_WAIT_FOR_CHANGES;
+			 //S_END_MOVE: next_state = moveCount > 4'b0 ? S_START_MOVE : S_WAIT_FOR_CHANGES;
+			 S_END_MOVE: begin
+				if (playerSpot == 5'd31 && &{playerProgress[1], playerProgress[3], playerProgress[7:5], playerProgress[11:9],
+						playerProgress[15:13], playerProgress[19:17], playerProgress[23:21], 
+						playerProgress[27:25], playerProgress[29], playerProgress[31]})
+				begin
+					finished[playerTurn] <= 1;
+					next_state = S_CHECK_GAME_END;
+				end else next_state = moveCount > 4'b0 ? S_START_MOVE : S_WAIT_FOR_CHANGES;
+			 end
 			 S_WAIT_FOR_CHANGES: next_state = S_ACTION_AT_STOP;
 			 //S_ACTION_AT_STOP: next_state = S_CHANGE_PLAYER;
 			 //S_ACTION_AT_STOP: next_state = S_PLOT_PROGRESS;
@@ -214,7 +298,11 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 			 end
 			 //next_state = sc_inc_count_x == 0 && sc_inc_count_y == 0 ? S_CHANGE_PLAYER : S_PLOT_SC_INCR;
 			 
-			 S_CHANGE_PLAYER: next_state = reset ? S_RESET_ALL : S_WAIT_FOR_INPUT;
+			 S_CHANGE_PLAYER: next_state = reset ? S_RESET_ALL : S_CHECK_CHANGE_PLAYER;
+			 S_CHECK_CHANGE_PLAYER: next_state = finished[playerTurn] ? S_CHANGE_PLAYER : S_WAIT_FOR_INPUT;
+			 
+			 S_CHECK_GAME_END: next_state = &finished ? S_GAME_END : S_CHANGE_PLAYER;
+			 S_GAME_END: next_state = S_GAME_END;
 			 
 		default: next_state = S_RESET_ALL;
 		endcase
@@ -241,6 +329,9 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 				y_mv = 0;
 				ld_dp <= 0;
 				drawProgress <= 0;
+				finished <= 0;
+				ffwd <= 0;
+				frc_change_turn <= 0;
 				if (playerTurn == 3'd0 && ~reset)
 					reset = 1;
 				else if (playerTurn == 3'd0 && reset)
@@ -249,15 +340,85 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 				//clr = 1;
 			end
 			S_WAIT_FOR_INPUT: begin
-				reset = 0;
-				f_clk_en = 1;
-				f_clk_reset = 0;
+				reset <= 0;
+				f_clk_en <= 1;
+				f_clk_reset <= 0;
+				frc_change_turn <= 0;
+				ffwd <= fast_fwd;
+				ld_dp <= 0;
+				draw_dice <= 0;
 			end
 			S_ROLL_DICE: begin
 				d1 <= d1_val;
 				d2 <= d2_val;
+				//d2 <= 0;
 				moveCount <= d1_val + d2_val;
 			end
+			
+			S_PLOT_D1: begin
+				dice_inc_count_x <= 0;
+				dice_inc_count_y <= 0;
+				dp_x_inc <= 0;
+				dp_y_inc <= 0;
+				dice_digit <= dice[d1];
+				dice_clr <= 0;
+				dice_num <= 0;
+				ld_dp <= 1;
+				draw_dice <= 1;
+			end
+			S_PLOT_D2: begin
+				dice_inc_count_x <= 0;
+				dice_inc_count_y <= 0;
+				dp_x_inc <= 0;
+				dp_y_inc <= 0;
+				dice_digit <= dice[d2];
+				dice_clr <= 0;
+				dice_num <= 1;
+			end
+			S_PLOT_D_INCR: begin
+				dp_x_inc = dice_inc_count_x;
+				dp_y_inc = dice_inc_count_y;
+				plot_to_vga = dice_digit[288];
+				dice_digit = dice_digit << 1;
+				dice_inc_count_x = dice_inc_count_x + 1;
+				if (dice_inc_count_x > 16) begin
+					dice_inc_count_x = 0;
+					dice_inc_count_y = dice_inc_count_y + 1;
+					if (dice_inc_count_y > 16)
+						dice_inc_count_y = 0;
+				end
+			end
+			S_CLEAR_D1: begin
+				dice_inc_count_x <= 0;
+				dice_inc_count_y <= 0;
+				dp_x_inc <= 0;
+				dp_y_inc <= 0;
+				dice_clr <= 1;
+				dice_num <= 0;
+				ld_dp <= 1;
+				draw_dice <= 1;
+			end
+			S_CLEAR_D2: begin
+				dice_inc_count_x <= 0;
+				dice_inc_count_y <= 0;
+				dp_x_inc <= 0;
+				dp_y_inc <= 0;
+				dice_clr <= 1;
+				dice_num <= 1;
+			end
+			S_CLEAR_D_INCR: begin
+				dp_x_inc = dice_inc_count_x;
+				dp_y_inc = dice_inc_count_y;
+				dice_inc_count_x = dice_inc_count_x + 1;
+				if (dice_inc_count_x > 16) begin
+					dice_inc_count_x = 0;
+					dice_inc_count_y = dice_inc_count_y + 1;
+					if (dice_inc_count_y > 16)
+						dice_inc_count_y = 0;
+				end
+				plot_to_vga = 1;
+			end
+			
 			S_START_MOVE: begin
 				/*if (moveCount == 4'b0) begin
 					d1 = d1_val;
@@ -265,6 +426,8 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 					moveCount = d1 + d2;
 					readDice = 0;
 				end*/
+				ld_dp <= 0;
+				draw_dice <= 0;
 				pixelsMoved <= 0;
 				moveCount = moveCount - 1'b1;
 			end
@@ -337,8 +500,8 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 				ld_back = 0;
 			end
 			S_START_FRAME_CLK: begin
-				f_clk_en = 1;
-				f_clk_reset = 0;
+				f_clk_en <= 1;
+				f_clk_reset <= 0;
 			end
 			S_UPDATE_POS: begin
 				ld_x = 1;
@@ -357,8 +520,8 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 				inc_count = inc_count + 1;
 			end
 			S_RESET_COUNT: begin
-				f_clk_en = 0;
-				f_clk_reset = 1;
+				f_clk_en <= 0;
+				f_clk_reset <= 1;
 				pixelsMoved <= pixelsMoved + 1;
 			end
 			S_WAIT_1: plot_to_vga = 1;
@@ -387,6 +550,8 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 					default: begin
 						if (playerProgress[playerSpot])
 							scoreChange <= 0;
+						else if (playerSpot == 5'd16 || playerSpot == 5'd24)
+							scoreChange <= spotScores[playerSpot];
 						else
 							scoreChange <= spotScores[playerSpot] * max;
 					end
@@ -514,13 +679,16 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 			S_CHANGE_PLAYER: begin
 				ld_dp = 0;
 				drawProgress = 0;
-				if (d1 != d2 || reset) begin
+				if (d1 != d2 || reset || frc_change_turn) begin
 					if (playerTurn == 3'd3)
 						playerTurn <= 0;
 					else
 						playerTurn <= playerTurn + 1'b1;
 				end
 			end
+			
+			S_CHECK_CHANGE_PLAYER: frc_change_turn = 1;
+			
 		endcase
 		
 	// End of signal control

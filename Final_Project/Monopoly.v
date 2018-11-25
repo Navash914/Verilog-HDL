@@ -6,6 +6,8 @@ module Monopoly (
 		KEY,							// On Board Keys
 		HEX0, HEX1, HEX2, HEX3, HEX4, HEX5,
 		LEDR,
+		PS2_CLK,
+		PS2_DAT,
 		// The ports below are for the VGA output.  Do not change.
 		VGA_CLK,   						//	VGA Clock
 		VGA_HS,							//	VGA H_SYNC
@@ -30,6 +32,8 @@ module Monopoly (
 	output	[7:0]	VGA_R;   				//	VGA Red[7:0] Changed from 10 to 8-bit DAC
 	output	[7:0]	VGA_G;	 				//	VGA Green[7:0]
 	output	[7:0]	VGA_B;   				//	VGA Blue[7:0]
+	inout				PS2_CLK;
+	inout				PS2_DAT;
 	
 	output [6:0] HEX0, HEX1, HEX2, HEX3, HEX4, HEX5;
 	output [9:0] LEDR;
@@ -153,10 +157,50 @@ module Monopoly (
 					.clock		(CLOCK_50),
 					.q				(bback_out)
 				);
+				
+	// ============================================================================
+	//
+	//  Input Handling
+	//
+	// ============================================================================
+	
+	wire [7:0] ps2_key_data;
+	wire ps2_key_pressed;
+	wire ps2_reset = ~KEY[1];
+	wire gameInput = game_input;
+	
+	reg game_input;
+	
+	PS2_Controller PS2 (
+		// Inputs
+		.CLOCK_50			(CLOCK_50),
+		.reset				(ps2_reset),
+
+		// Bidirectionals
+		.PS2_CLK				(PS2_CLK),
+		.PS2_DAT				(PS2_DAT),
+
+		// Outputs
+		.received_data		(ps2_key_data),
+		.received_data_en	(ps2_key_pressed)
+	);
+	
+	always @(posedge CLOCK_50)
+	begin
+		if (ps2_reset)
+			game_input <= 0;
+		if (ps2_key_pressed) begin
+			if (ps2_key_data == 8'h29)
+				game_input <= 1;
+			else
+				game_input <= 0;
+		end else
+			game_input <= 0;
+	end
 	
 	// ============================================================================
 	//
-	//  Movement Logic
+	//  Game Logic
 	//
 	// ============================================================================
 	
@@ -164,9 +208,10 @@ module Monopoly (
 	wire ld_back;
 	wire [23:0] c;
 	
-	ControlPath cp (.clk(CLOCK_50), .Input(~KEY[0]), .bd_addr(bd_addr), .bd_read(bd_out), .bd_write(bd_in),
+	ControlPath cp (.clk(CLOCK_50), .Input(gameInput), .bd_addr(bd_addr), .bd_read(bd_out), .bd_write(bd_in),
 							.bback_addr(bback_addr), /*.bback_read(bback_out),*/ .d1(d1_val), .d2(d2_val), 
 							.x(x), .y(y), .c(c), .plot(vga_wren), .index(index), .ld_bback(ld_back),
+							.fast_fwd(SW[9]),
 							.hex(HEX0), .hex2(HEX1), .hex3(HEX2), .hex4(HEX3), .hex5(HEX4), .hex6(HEX5)
 							);
 	
@@ -194,7 +239,9 @@ module Monopoly (
 		defparam VGA.RESOLUTION = "320x240";
 		defparam VGA.MONOCHROME = "FALSE";
 		defparam VGA.BITS_PER_COLOUR_CHANNEL = 8;
+		//defparam VGA.BITS_PER_COLOUR_CHANNEL = 4;
 		defparam VGA.BACKGROUND_IMAGE = "VGA_Background.mif";
+		//defparam VGA.BACKGROUND_IMAGE = "VGA_Background_4bit.mif";
 		
 	
 

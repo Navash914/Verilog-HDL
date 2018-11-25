@@ -1,8 +1,10 @@
 
 module Datapath (clk, reset, turn, spot, ld_dp, x_inc, y_inc,
 						x_out, y_out, c_out,
+						draw_dice, dice_clr, dice_num,
 						digit, ld_dp_p, sc_clr);
 	input clk, reset, ld_dp, ld_dp_p, sc_clr;
+	input draw_dice, dice_clr, dice_num;
 	input [1:0] digit;
 	input [2:0] turn;
 	input [4:0] spot;
@@ -151,6 +153,16 @@ module Datapath (clk, reset, turn, spot, ld_dp, x_inc, y_inc,
 						c <= 24'b0;
 					end
 				endcase
+			end else if (draw_dice) begin
+				y <= 8'd164;// - turn * 6'd52;
+				if (dice_num == 0)
+					x <= 9'd99;
+				else
+					x <= 9'd123;
+				if (dice_clr)
+					c <= ~(24'b0);
+				else
+					c <= 24'b0;
 			end else if (sc_clr) begin
 				x <= 9'd279;
 				y <= 8'd33;
@@ -172,8 +184,10 @@ module Datapath (clk, reset, turn, spot, ld_dp, x_inc, y_inc,
 		end
 	end
 	
+	wire [7:0] y_offset = draw_dice ? 0 :  turn * 6'd52;
+	
 	assign x_out = x + x_inc;
-	assign y_out = y + (turn * 6'd52) + y_inc;
+	assign y_out = y + y_offset + y_inc;
 	assign c_out = c;
 
 endmodule

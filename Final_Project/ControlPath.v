@@ -1,7 +1,7 @@
 module ControlPath (clk, Input, bd_addr, bd_read, bd_write, bback_addr, //bback_read,
 							d1, d2, x, y, c, plot, hex, hex2, hex3, hex4, hex5, hex6,
-							index, ld_bback);
-	input clk, Input;
+							index, ld_bback, fast_fwd);
+	input clk, Input, fast_fwd;
 	input [91:0] bd_read;
 	//input [191:0] bback_read;
 	input [2:0] d1, d2;
@@ -35,6 +35,7 @@ module ControlPath (clk, Input, bd_addr, bd_read, bd_write, bback_addr, //bback_
 	wire [4:0] dp_x_inc, dp_y_inc;
 	wire [1:0] digitNum;
 	wire [3:0] sc_dg_0, sc_dg_1, sc_dg_2, sc_dg_3;
+	wire draw_dice, dice_clr, dice_num;
 	
 	assign sc_dg_0 = score[turn] / 1000;
 	assign sc_dg_1 = (score[turn] / 100) % 10;
@@ -51,8 +52,9 @@ module ControlPath (clk, Input, bd_addr, bd_read, bd_write, bback_addr, //bback_
 							.scoreChange(scoreChange), .ld_score(ld_score), .ld_progress(ld_progress), 
 							.sc_neg(sc_neg), .playerProgress(progress[turn]),
 							.sc_clr(sc_clr), .dp_x_inc(dp_x_inc), .dp_y_inc(dp_y_inc), .playerScore(score[turn]), 
-							.dg(digitNum), .ld_dp_p(ld_dp_p),
+							.dg(digitNum), .ld_dp_p(ld_dp_p), .fast_fwd(fast_fwd),
 							.sc_dg_0(sc_dg_0), .sc_dg_1(sc_dg_1), .sc_dg_2(sc_dg_2), .sc_dg_3(sc_dg_3),
+							.draw_dice(draw_dice), .dice_clr(dice_clr), .dice_num(dice_num),
 							.hex(hex), .hex2(hex2)
 							);
 							
@@ -62,6 +64,7 @@ module ControlPath (clk, Input, bd_addr, bd_read, bd_write, bback_addr, //bback_
 							
 	Datapath dp (.clk(clk), .reset(reset), .turn(turn), .spot(spot[turn]), .ld_dp(ld_dp), .x_inc(dp_x_inc), .y_inc(dp_y_inc),
 						.x_out(dp_x_out), .y_out(dp_y_out), .c_out(dp_c_out),
+						.draw_dice(draw_dice), .dice_clr(dice_clr), .dice_num(dice_num),
 						.digit(digitNum), .ld_dp_p(ld_dp_p), .sc_clr(sc_clr));
 							
 	wire p0_turn = turn == 3'd0;
