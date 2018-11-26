@@ -6,11 +6,11 @@ module Player (clk, turn, reset, Right, Down, C_In, ld_x, ld_y, ld_back, ld_spot
 	input ld_x, ld_y, ld_back, ld_spot, ld_score, ld_progress;
 	input x_mv, y_mv, sc_neg;
 	input [8:0] scoreChange;
-	input [23:0] C_In;
+	input [11:0] C_In;
 	input [2:0] x_inc, y_inc;
 	
 	//output [6:0] hex;
-	output [23:0] C_Out;
+	output [11:0] C_Out;
 	output [7:0] Y_Out;
 	output [8:0] X_Out;
 	output reg [5:0] moveSpaces;
@@ -21,7 +21,7 @@ module Player (clk, turn, reset, Right, Down, C_In, ld_x, ld_y, ld_back, ld_spot
 	
 	reg [8:0] x;
 	reg [7:0] y;
-	reg [23:0] c;
+	reg [11:0] c;
 	
 	parameter player = 0;
 	/*parameter Color = "Red";

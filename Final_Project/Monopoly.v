@@ -86,76 +86,27 @@ module Monopoly (
 					.q				(bd_out)
 				);*/
 				
-	wire [15:0] bback_addr;
+	wire [16:0] bback_addr;
 	//wire [12:0] bback_addr;
-	wire [23:0] bback_out;// [8];
+	wire [11:0] bback_out, tback_out;// [8];
 	//wire [191:0] bback_out;
 	//wire [2:0] bback_out;
 	
-	/*rom240x240 board_back0(
-					.address		(bback_addr),
-					.clock		(CLOCK_50),
-					.q				(bback_out[0])
-				);
-	defparam board_back0.load_filename = "Board_back0.mif";
-	
-	rom240x240 board_back1(
-					.address		(bback_addr),
-					.clock		(CLOCK_50),
-					.q				(bback_out[1])
-				);
-	defparam board_back1.load_filename = "Board_back1.mif";
-	
-	rom240x240 board_back2(
-					.address		(bback_addr),
-					.clock		(CLOCK_50),
-					.q				(bback_out[2])
-				);
-	defparam board_back2.load_filename = "Board_back2.mif";
-	
-	rom240x240 board_back3(
-					.address		(bback_addr),
-					.clock		(CLOCK_50),
-					.q				(bback_out[3])
-				);
-	defparam board_back3.load_filename = "Board_back3.mif";
-	
-	rom240x240 board_back4(
-					.address		(bback_addr),
-					.clock		(CLOCK_50),
-					.q				(bback_out[4])
-				);
-	defparam board_back4.load_filename = "Board_back4.mif";
-	
-	
-	rom240x240 board_back5(
-					.address		(bback_addr),
-					.clock		(CLOCK_50),
-					//.q				(bback_out[143:120])
-					.q				(bback_out[5])
-				);
-	defparam board_back5.load_filename = "Board_back5.mif";
-	
-	rom240x240 board_back6(
-					.address		(bback_addr),
-					.clock		(CLOCK_50),
-					//.q				(bback_out[167:144])
-					.q				(bback_out[6])
-				);
-	defparam board_back6.load_filename = "Board_back6.mif";
-	
-	rom240x240 board_back7(
-					.address		(bback_addr),
-					.clock		(CLOCK_50),
-					//.q				(bback_out[191:168])
-					.q				(bback_out[7])
-				);
-	defparam board_back7.load_filename = "Board_back7.mif";*/
-	
-	rom_back background (
+	/*rom_back background (
 					.address		(bback_addr),
 					.clock		(CLOCK_50),
 					.q				(bback_out)
+				);*/
+	rom_gameBoard game_board (
+					.address		(bback_addr),
+					.clock		(CLOCK_50),
+					.q				(bback_out)
+				);
+	
+	rom_gameTitle title_screen (
+					.address		(bback_addr),
+					.clock		(CLOCK_50),
+					.q				(tback_out)
 				);
 				
 	// ============================================================================
@@ -206,16 +157,18 @@ module Monopoly (
 	
 	wire [2:0] index;
 	wire ld_back;
-	wire [23:0] c;
+	wire [11:0] c;
+	wire select_rom;
 	
-	ControlPath cp (.clk(CLOCK_50), .Input(gameInput), .bd_addr(bd_addr), .bd_read(bd_out), .bd_write(bd_in),
+	ControlPath cp (.clk(CLOCK_50), .Input(~KEY[0]), .start(~KEY[1]), .cancel(~KEY[2]),
+							.bd_addr(bd_addr), .bd_read(bd_out), .bd_write(bd_in),
 							.bback_addr(bback_addr), /*.bback_read(bback_out),*/ .d1(d1_val), .d2(d2_val), 
 							.x(x), .y(y), .c(c), .plot(vga_wren), .index(index), .ld_bback(ld_back),
-							.fast_fwd(SW[9]),
+							.fast_fwd(SW[9]), .select_rom(select_rom),
 							.hex(HEX0), .hex2(HEX1), .hex3(HEX2), .hex4(HEX3), .hex5(HEX4), .hex6(HEX5)
 							);
 	
-	assign colour = ld_back ? bback_out/*[index]*/ : c;
+	assign colour = ld_back ? (select_rom ? bback_out : tback_out) : c;
 
 	// Create an Instance of a VGA controller - there can be only one!
 	// Define the number of colours as well as the initial background
@@ -238,10 +191,10 @@ module Monopoly (
 			.VGA_CLK(VGA_CLK));
 		defparam VGA.RESOLUTION = "320x240";
 		defparam VGA.MONOCHROME = "FALSE";
-		defparam VGA.BITS_PER_COLOUR_CHANNEL = 8;
-		//defparam VGA.BITS_PER_COLOUR_CHANNEL = 4;
-		defparam VGA.BACKGROUND_IMAGE = "VGA_Background.mif";
-		//defparam VGA.BACKGROUND_IMAGE = "VGA_Background_4bit.mif";
+		//defparam VGA.BITS_PER_COLOUR_CHANNEL = 8;
+		defparam VGA.BITS_PER_COLOUR_CHANNEL = 4;
+		//defparam VGA.BACKGROUND_IMAGE = "VGA_Background.mif";
+		defparam VGA.BACKGROUND_IMAGE = "Title_Screen.mif";
 		
 	
 

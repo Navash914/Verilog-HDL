@@ -1,11 +1,13 @@
-module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, plot_to_vga,
+module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right, Down, reset, plot_to_vga,
 							ld_x, ld_y, ld_back, ld_spot, x_mv, y_mv, playerTurn, x_inc, y_inc,
 							moveSpaces, scoreChange, ld_score, ld_progress, sc_neg, playerProgress,
 							ld_dp, sc_clr, dp_x_inc, dp_y_inc, playerScore, dg, ld_dp_p,
 							sc_dg_0, sc_dg_1, sc_dg_2, sc_dg_3, fast_fwd, draw_dice, dice_clr, dice_num,
+							frc, frc_x, frc_y, select_rom,
 							hex, hex2
 							);
-	input clk, Input, fast_fwd;
+	input clk, Input, start, cancel, fast_fwd;
+	
 	input [31:0] playerProgress;
 	input [12:0] playerScore;
 	input [5:0] moveSpaces;
@@ -24,6 +26,9 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 	output reg [4:0] dp_x_inc, dp_y_inc;
 	output reg [1:0] dg;
 	output reg draw_dice, dice_clr, dice_num;
+	output reg frc, select_rom;
+	output reg [8:0] frc_x;
+	output reg [7:0] frc_y;
 	
 	reg [3:0] finished;
 	reg frc_change_turn;
@@ -137,7 +142,15 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 								
 	assign frameDivider = (frameClkEnable && RateDivider == Max) ? 1 : 0;
 
-	localparam  S_RESET_ALL					= 6'd0,
+	localparam  S_TITLE						= 6'd0,
+					S_DRAW_BOARD				= 6'd51,
+					S_DRAW_BOARD_INCR			= 6'd52,
+					S_DRAW_BOARD_END			= 6'd53,
+					S_DRAW_TITLE				= 6'd54,
+					S_DRAW_TITLE_INCR			= 6'd55,
+					S_DRAW_TITLE_END			= 6'd56,
+					S_RESET_ALL					= 6'd50,
+					S_DRAW_ALL_PLAYERS		= 6'd57,
 					S_WAIT_FOR_INPUT     	= 6'd1,
 					S_WAIT_FOR_INPUT_OFF		= 6'd17,
 					S_ROLL_DICE					= 6'd2,
@@ -195,6 +208,8 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 	 reg [5:0] inc_count;
 	 reg [4:0] clr_inc_count_x;
 	 reg [2:0] clr_inc_count_y;
+	 reg [8:0] frc_inc_count_x;
+	 reg [7:0] frc_inc_count_y;
 	 reg [4:0] dice_inc_count_x, dice_inc_count_y;
 	 reg [2:0] sc_inc_count_x, sc_inc_count_y;
 	 reg [2:0] prog_inc_count;
@@ -202,7 +217,8 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 	 reg [3:0] moveCount;
 	 reg [5:0] pixelsMoved;
 	 reg right, down;
-	 reg isClear;
+	 reg player_draw_start;
+	 reg [5:0] stored_state;
 	 reg drawProgress;
 	 reg [48:0] sc_digit;
 	 reg [288:0] dice_digit;
@@ -211,8 +227,17 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
     always@(posedge clk)
     begin
 		case (current_state)
-			 S_RESET_ALL: next_state = S_PLOT;
-			 S_WAIT_FOR_INPUT: next_state = ffwd ? S_ROLL_DICE : Input ? S_WAIT_FOR_INPUT_OFF : S_WAIT_FOR_INPUT;
+			 S_TITLE: next_state = start ? S_DRAW_BOARD : S_TITLE;
+			 S_DRAW_BOARD: next_state = S_DRAW_BOARD_INCR;
+			 S_DRAW_BOARD_INCR: next_state = S_WAIT_0;
+			 S_DRAW_BOARD_END: next_state = frc_inc_count_x == 0 && frc_inc_count_y == 0 ? S_RESET_ALL : S_DRAW_BOARD_INCR;
+			 S_DRAW_TITLE: next_state = S_DRAW_TITLE_INCR;
+			 S_DRAW_TITLE_INCR: next_state = S_WAIT_0;
+			 S_DRAW_TITLE_END: next_state = frc_inc_count_x == 0 && frc_inc_count_y == 0 ? S_TITLE : S_DRAW_TITLE_INCR;
+			 //S_RESET_ALL: next_state = S_PLOT;
+			 S_RESET_ALL: next_state = S_DRAW_ALL_PLAYERS;
+			 S_DRAW_ALL_PLAYERS: next_state = player_draw_start && playerTurn == 0 ? S_WAIT_FOR_INPUT : S_PLOT;
+			 S_WAIT_FOR_INPUT: next_state = ffwd ? S_ROLL_DICE : cancel ? S_DRAW_TITLE : Input ? S_WAIT_FOR_INPUT_OFF : S_WAIT_FOR_INPUT;
 			 S_WAIT_FOR_INPUT_OFF: next_state = Input ? S_WAIT_FOR_INPUT_OFF : S_ROLL_DICE;
 			 S_ROLL_DICE: next_state = S_CLEAR_D1;
 			 
@@ -248,7 +273,7 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 			 S_PLOT_END: next_state = inc_count == 6'b0 ? S_RESET_COUNT : S_PLOT_INCR;
 			 S_WAIT_0: next_state = S_WAIT_1;
 			 S_WAIT_1: next_state = S_WAIT_2;
-			 S_WAIT_2: next_state = isClear ? S_CLEAR_END : S_PLOT_END;
+			 S_WAIT_2: next_state = /*isClear ? S_CLEAR_END : S_PLOT_END*/ stored_state;
 			 S_RESET_COUNT: next_state = reset ? S_CHANGE_PLAYER : pixelsMoved >= (moveSpaces - 1'b1) ? S_END_MOVE : S_START_FRAME_CLK;
 			 //S_END_MOVE: next_state = moveCount > 4'b0 ? S_START_MOVE : S_WAIT_FOR_CHANGES;
 			 S_END_MOVE: begin
@@ -298,13 +323,13 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 			 end
 			 //next_state = sc_inc_count_x == 0 && sc_inc_count_y == 0 ? S_CHANGE_PLAYER : S_PLOT_SC_INCR;
 			 
-			 S_CHANGE_PLAYER: next_state = reset ? S_RESET_ALL : S_CHECK_CHANGE_PLAYER;
+			 S_CHANGE_PLAYER: next_state = reset ? /*S_RESET_ALL*/ S_DRAW_ALL_PLAYERS : S_CHECK_CHANGE_PLAYER;
 			 S_CHECK_CHANGE_PLAYER: next_state = finished[playerTurn] ? S_CHANGE_PLAYER : S_WAIT_FOR_INPUT;
 			 
 			 S_CHECK_GAME_END: next_state = &finished ? S_GAME_END : S_CHANGE_PLAYER;
 			 S_GAME_END: next_state = S_GAME_END;
 			 
-		default: next_state = S_RESET_ALL;
+		default: next_state = S_TITLE;
 		endcase
 	 // End of State Table
 		
@@ -315,32 +340,80 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 		//ld_back = 0;
 		ld_spot = 0;
 		plot_to_vga = 0;
-		//x_inc = 2'b0;
-		//y_inc = 2'b0;
-		//clr = 0;
-		//f_clk_reset = 0;
-		//reset = 0;
 		case (current_state)
+			S_TITLE: begin
+				playerTurn <= 0;
+				//reset <= 1;
+			end
+			S_DRAW_BOARD: begin
+				frc <= 1;
+				ld_back <= 1;
+				ld_dp <= 1;
+				//reset <= 0;
+				select_rom <= 1;
+				stored_state <= S_DRAW_BOARD_END;
+				frc_inc_count_x <= 0;
+				frc_inc_count_y <= 0;
+			end
+			S_DRAW_BOARD_INCR: begin
+				frc_x <= frc_inc_count_x;
+				frc_y <= frc_inc_count_y;
+				plot_to_vga <= 1;
+				frc_inc_count_x = frc_inc_count_x + 1;
+				if (frc_inc_count_x >= 320) begin
+					frc_inc_count_x = 0;
+					frc_inc_count_y = frc_inc_count_y + 1;
+					if (frc_inc_count_y >= 240)
+						frc_inc_count_y = 0;
+				end
+			end
+			S_DRAW_TITLE: begin
+				frc <= 1;
+				ld_back <= 1;
+				ld_dp <= 1;
+				select_rom <= 0;
+				stored_state <= S_DRAW_TITLE_END;
+				frc_inc_count_x <= 0;
+				frc_inc_count_y <= 0;
+			end
+			S_DRAW_TITLE_INCR: begin
+				frc_x <= frc_inc_count_x;
+				frc_y <= frc_inc_count_y;
+				plot_to_vga <= 1;
+				frc_inc_count_x = frc_inc_count_x + 1;
+				if (frc_inc_count_x >= 320) begin
+					frc_inc_count_x = 0;
+					frc_inc_count_y = frc_inc_count_y + 1;
+					if (frc_inc_count_y >= 240)
+						frc_inc_count_y = 0;
+				end
+			end
 			S_RESET_ALL: begin
 				//reset = 1;
+				frc <= 0;
 				right <= 0;
 				down <= 0;
 				x_mv = 1;
 				y_mv = 0;
 				ld_dp <= 0;
+				ld_back <= 0;
 				drawProgress <= 0;
 				finished <= 0;
 				ffwd <= 0;
 				frc_change_turn <= 0;
+				player_draw_start <= 0;
+				reset <= 1;
+				/*
 				if (playerTurn == 3'd0 && ~reset)
 					reset = 1;
 				else if (playerTurn == 3'd0 && reset)
 					next_state = S_WAIT_FOR_INPUT;
-				//playerTurn <= 0;
-				//clr = 1;
+				*/
 			end
+			S_DRAW_ALL_PLAYERS: player_draw_start <= 1;
 			S_WAIT_FOR_INPUT: begin
 				reset <= 0;
+				ld_back <= 0;
 				f_clk_en <= 1;
 				f_clk_reset <= 0;
 				frc_change_turn <= 0;
@@ -433,7 +506,9 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 			end
 			S_CLEAR: begin
 				inc_count = 6'd0;
-				isClear <= 1;
+				//isClear <= 1;
+				ld_dp <= 0;
+				stored_state <= S_CLEAR_END;
 				ld_back = 1;
 				x_inc = 3'b0;
 				y_inc = 3'b0;
@@ -509,7 +584,9 @@ module ControlFSM (clk, Input, playerSpot, d1_val, d2_val, Right, Down, reset, p
 			end
 			S_PLOT: begin
 				inc_count = 6'd0;
-				isClear = 0;
+				//isClear = 0;
+				ld_dp <= 0;
+				stored_state <= S_PLOT_END;
 				x_inc = 3'b0;
 				y_inc = 3'b0;
 			end
