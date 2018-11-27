@@ -1,18 +1,18 @@
 
 module Datapath (clk, reset, turn, spot, ld_dp, x_inc, y_inc,
-						x_out, y_out, c_out,
+						x_out, y_out, c_out, draw_win,
 						frc, frc_x, frc_y,
 						draw_dice, dice_clr, dice_num,
 						digit, ld_dp_p, sc_clr);
 	input clk, reset, ld_dp, ld_dp_p, sc_clr;
 	input draw_dice, dice_clr, dice_num;
-	input frc;
+	input frc, draw_win;
 	input [8:0] frc_x;
 	input [7:0] frc_y;
 	input [1:0] digit;
 	input [2:0] turn;
 	input [4:0] spot;
-	input [4:0] x_inc, y_inc;
+	input [7:0] x_inc, y_inc;
 	
 	output [8:0] x_out;
 	output [7:0] y_out;
@@ -160,13 +160,16 @@ module Datapath (clk, reset, turn, spot, ld_dp, x_inc, y_inc,
 			end else if (draw_dice) begin
 				y <= 8'd164;// - turn * 6'd52;
 				if (dice_num == 0)
-					x <= 9'd99;
+					x <= 9'd123;//x <= 9'd99;
 				else
-					x <= 9'd123;
+					x <= 9'd147;//x <= 9'd123;
 				if (dice_clr)
 					c <= ~(12'b0);
 				else
 					c <= 12'b0;
+			end else if (draw_win) begin
+				x <= 51;
+				y <= 51;
 			end else if (sc_clr) begin
 				x <= 9'd279;
 				y <= 8'd33;
@@ -188,7 +191,7 @@ module Datapath (clk, reset, turn, spot, ld_dp, x_inc, y_inc,
 		end
 	end
 	
-	wire [7:0] y_offset = draw_dice ? 0 :  turn * 6'd52;
+	wire [7:0] y_offset = (draw_dice || draw_win) ? 0 :  turn * 6'd52;
 	
 	assign x_out = frc ? frc_x : (x + x_inc);
 	assign y_out = frc ? frc_y : (y + y_offset + y_inc);

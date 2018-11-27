@@ -1,25 +1,22 @@
 module ControlPath (clk, Input, start, cancel,
-							bd_addr, bd_read, bd_write, bback_addr, //bback_read,
+							bback_addr, w_addr, p_addr,
 							d1, d2, x, y, c, plot, select_rom,
 							hex, hex2, hex3, hex4, hex5, hex6,
 							index, ld_bback, fast_fwd);
 	input clk, Input, start, cancel, fast_fwd;
-	input [91:0] bd_read;
-	//input [191:0] bback_read;
 	input [2:0] d1, d2;
 	
 	output [2:0] index;
-	output select_rom;
+	output [1:0] select_rom;
 	output ld_bback;
 	output [6:0] hex, hex2, hex3, hex4, hex5, hex6;
 	output reg [8:0] x;
 	output reg [7:0] y;
 	output reg [11:0] c;
-	output  plot;
-	output [5:0] bd_addr;
+	output plot;
 	output reg [16:0] bback_addr;
-	//output reg [12:0] bback_addr;
-	output bd_write;
+	output reg [14:0] w_addr;
+	output reg [7:0] p_addr;
 	
 	wire [4:0] spot [4];
 	wire ld_x, ld_y, ld_back, ld_spot, ld_score, ld_progress, ld_dp;
@@ -35,13 +32,17 @@ module ControlPath (clk, Input, start, cancel,
 	wire [8:0] scoreChange;
 	wire [31:0] progress [4];
 	wire sc_clr, ld_dp_p;
-	wire [4:0] dp_x_inc, dp_y_inc;
+	wire [7:0] dp_x_inc, dp_y_inc;
 	wire [1:0] digitNum;
 	wire [3:0] sc_dg_0, sc_dg_1, sc_dg_2, sc_dg_3;
 	wire draw_dice, dice_clr, dice_num;
+	wire draw_win;
 	wire frc;
 	wire [8:0] frc_x;
 	wire [7:0] frc_y;
+	wire [1:0] win = score[0] > score[1] && score[0] > score[2] && score[0] > score[3] ? 0 :
+							score[1] > score[0] && score[1] > score[2] && score[1] > score[3] ? 1 :
+							score[2] > score[0] && score[2] > score[1] && score[2] > score[3] ? 2 : 3;
 	
 	assign sc_dg_0 = score[turn] / 1000;
 	assign sc_dg_1 = (score[turn] / 100) % 10;
@@ -63,6 +64,7 @@ module ControlPath (clk, Input, start, cancel,
 							.sc_dg_0(sc_dg_0), .sc_dg_1(sc_dg_1), .sc_dg_2(sc_dg_2), .sc_dg_3(sc_dg_3),
 							.draw_dice(draw_dice), .dice_clr(dice_clr), .dice_num(dice_num),
 							.frc(frc), .frc_x(frc_x), .frc_y(frc_y), .select_rom(select_rom),
+							.draw_win(draw_win),
 							.hex(hex), .hex2(hex2)
 							);
 							
@@ -73,7 +75,7 @@ module ControlPath (clk, Input, start, cancel,
 	Datapath dp (.clk(clk), .reset(reset), .turn(turn), .spot(spot[turn]), .ld_dp(ld_dp), .x_inc(dp_x_inc), .y_inc(dp_y_inc),
 						.x_out(dp_x_out), .y_out(dp_y_out), .c_out(dp_c_out),
 						.draw_dice(draw_dice), .dice_clr(dice_clr), .dice_num(dice_num),
-						.frc(frc), .frc_x(frc_x), .frc_y(frc_y),
+						.frc(frc), .frc_x(frc_x), .frc_y(frc_y), .draw_win(draw_win),
 						.digit(digitNum), .ld_dp_p(ld_dp_p), .sc_clr(sc_clr));
 							
 	wire p0_turn = turn == 3'd0;
@@ -150,11 +152,13 @@ module ControlPath (clk, Input, start, cancel,
 			y <= dp_y_out;
 			c <= dp_c_out;
 			bback_addr <= dp_y_out * 9'd320 + dp_x_out;
+			w_addr <= dp_x_inc + (dp_y_inc + win * 6'd31) * 8'd137;
 		end else begin
 			x <= x_out[turn];
 			y <= y_out[turn];
 			c <= c_out[turn];
 			bback_addr <= y_out[turn] * 9'd320 + x_out[turn];
+			p_addr <= x_inc + turn * 4'd8 + y_inc * 6'd32;
 		end
 		
 	end

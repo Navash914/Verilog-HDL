@@ -1,7 +1,7 @@
 module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right, Down, reset, plot_to_vga,
 							ld_x, ld_y, ld_back, ld_spot, x_mv, y_mv, playerTurn, x_inc, y_inc,
 							moveSpaces, scoreChange, ld_score, ld_progress, sc_neg, playerProgress,
-							ld_dp, sc_clr, dp_x_inc, dp_y_inc, playerScore, dg, ld_dp_p,
+							ld_dp, sc_clr, dp_x_inc, dp_y_inc, playerScore, dg, ld_dp_p, draw_win,
 							sc_dg_0, sc_dg_1, sc_dg_2, sc_dg_3, fast_fwd, draw_dice, dice_clr, dice_num,
 							frc, frc_x, frc_y, select_rom,
 							hex, hex2
@@ -17,16 +17,17 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 	
 	output [6:0] hex, hex2;
 	output Right, Down;
-	output reg reset, plot_to_vga, ld_dp_p;
+	output reg reset, plot_to_vga, ld_dp_p, draw_win;
 	output reg ld_x, ld_y, ld_back, ld_spot, ld_score, ld_progress, ld_dp;
 	output reg x_mv, y_mv, sc_neg, sc_clr;
 	output reg [8:0] scoreChange;
 	output reg [2:0] playerTurn;
 	output reg [2:0] x_inc, y_inc;
-	output reg [4:0] dp_x_inc, dp_y_inc;
+	output reg [7:0] dp_x_inc, dp_y_inc;
 	output reg [1:0] dg;
 	output reg draw_dice, dice_clr, dice_num;
-	output reg frc, select_rom;
+	output reg frc;
+	output reg [1:0] select_rom;
 	output reg [8:0] frc_x;
 	output reg [7:0] frc_y;
 	
@@ -197,6 +198,9 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 					S_CHANGE_PLAYER			= 6'd15,
 					S_CHECK_CHANGE_PLAYER	= 6'd39,
 					S_CHECK_GAME_END			= 6'd37,
+					S_DRAW_WIN_TEXT			= 6'd58,
+					S_DRAW_WIN_TEXT_INCR		= 6'd59,
+					S_DRAW_WIN_TEXT_END		= 6'd60,
 					S_GAME_END					= 6'd38;
 					
 	 wire [4:0] cs = current_state;
@@ -210,6 +214,8 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 	 reg [2:0] clr_inc_count_y;
 	 reg [8:0] frc_inc_count_x;
 	 reg [7:0] frc_inc_count_y;
+	 reg [7:0] win_inc_count_x;
+	 reg [5:0] win_inc_count_y;
 	 reg [4:0] dice_inc_count_x, dice_inc_count_y;
 	 reg [2:0] sc_inc_count_x, sc_inc_count_y;
 	 reg [2:0] prog_inc_count;
@@ -326,8 +332,11 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 			 S_CHANGE_PLAYER: next_state = reset ? /*S_RESET_ALL*/ S_DRAW_ALL_PLAYERS : S_CHECK_CHANGE_PLAYER;
 			 S_CHECK_CHANGE_PLAYER: next_state = finished[playerTurn] ? S_CHANGE_PLAYER : S_WAIT_FOR_INPUT;
 			 
-			 S_CHECK_GAME_END: next_state = &finished ? S_GAME_END : S_CHANGE_PLAYER;
-			 S_GAME_END: next_state = S_GAME_END;
+			 S_CHECK_GAME_END: next_state = &finished ? S_DRAW_WIN_TEXT : S_CHANGE_PLAYER;
+			 S_DRAW_WIN_TEXT: next_state = S_DRAW_WIN_TEXT_INCR;
+			 S_DRAW_WIN_TEXT_INCR: next_state = S_WAIT_0;
+			 S_DRAW_WIN_TEXT_END: next_state = win_inc_count_x == 0 && win_inc_count_y == 0 ? S_GAME_END : S_DRAW_WIN_TEXT_INCR;
+			 S_GAME_END: next_state = cancel ? S_DRAW_TITLE : S_GAME_END;
 			 
 		default: next_state = S_TITLE;
 		endcase
@@ -398,6 +407,7 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 				ld_dp <= 0;
 				ld_back <= 0;
 				drawProgress <= 0;
+				draw_win <= 0;
 				finished <= 0;
 				ffwd <= 0;
 				frc_change_turn <= 0;
@@ -509,6 +519,7 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 				//isClear <= 1;
 				ld_dp <= 0;
 				stored_state <= S_CLEAR_END;
+				select_rom <= 1;
 				ld_back = 1;
 				x_inc = 3'b0;
 				y_inc = 3'b0;
@@ -586,6 +597,8 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 				inc_count = 6'd0;
 				//isClear = 0;
 				ld_dp <= 0;
+				ld_back <= 1;
+				select_rom <= 2;
 				stored_state <= S_PLOT_END;
 				x_inc = 3'b0;
 				y_inc = 3'b0;
@@ -599,6 +612,7 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 			S_RESET_COUNT: begin
 				f_clk_en <= 0;
 				f_clk_reset <= 1;
+				ld_back <= 0;
 				pixelsMoved <= pixelsMoved + 1;
 			end
 			S_WAIT_1: plot_to_vga = 1;
@@ -765,6 +779,37 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 			end
 			
 			S_CHECK_CHANGE_PLAYER: frc_change_turn = 1;
+			
+			S_DRAW_WIN_TEXT: begin
+				dp_x_inc <= 0;
+				dp_y_inc <= 0;
+				win_inc_count_x <= 0;
+				win_inc_count_y <= 0;
+				ld_dp <= 1;
+				ld_back <= 1;
+				draw_win <= 1;
+				select_rom <= 2'd3;
+				stored_state <= S_DRAW_WIN_TEXT_END;
+			end
+			
+			S_DRAW_WIN_TEXT_INCR: begin
+				dp_x_inc <= win_inc_count_x;
+				dp_y_inc <= win_inc_count_y;
+				plot_to_vga <= 1;
+				win_inc_count_x = win_inc_count_x + 1;
+				if (win_inc_count_x >= 137) begin
+					win_inc_count_x = 0;
+					win_inc_count_y = win_inc_count_y + 1;
+					if (win_inc_count_y >= 31)
+						win_inc_count_y = 0;
+				end
+			end
+			
+			S_GAME_END: begin
+				ld_dp <= 0;
+				ld_back <= 0;
+				draw_win <= 0;
+			end
 			
 		endcase
 		

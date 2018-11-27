@@ -43,7 +43,7 @@ module Monopoly (
 	
 	// Create the colour, x, y and writeEn wires that are inputs to the controller.
 
-	wire [23:0] colour;
+	wire [11:0] colour;
 	wire [8:0] x;
 	wire [7:0] y;
 	wire vga_wren;
@@ -62,8 +62,10 @@ module Monopoly (
 	GenerateClock d2_c (.inclk(CLOCK_50), .freq(d2_freq), .outclk(d2_clk));
 	
 	wire [2:0] d1_val, d2_val;
-	RollDice d1 (.clk(d1_clk), .q(d1_val));
-	RollDice d2 (.clk(d2_clk), .q(d2_val));
+	RollDice d1_module (.clk(d1_clk), .q(d1_val));
+	RollDice d2_module (.clk(d2_clk), .q(d2_val));
+	wire [2:0] d1 = SW[8] ? SW[5:3] : d1_val;
+	wire [2:0] d2 = SW[8] ? SW[2:0] : d2_val;
 	
 	//HEX_Decoder d1_h ({2'b00, d1_val}, HEX1);
 	//HEX_Decoder d2_h ({2'b00, d2_val}, HEX0);
@@ -87,8 +89,10 @@ module Monopoly (
 				);*/
 				
 	wire [16:0] bback_addr;
+	wire [14:0] w_addr;
+	wire [7:0] p_addr;
 	//wire [12:0] bback_addr;
-	wire [11:0] bback_out, tback_out;// [8];
+	wire [11:0] bback_out [4];// [8];
 	//wire [191:0] bback_out;
 	//wire [2:0] bback_out;
 	
@@ -100,13 +104,25 @@ module Monopoly (
 	rom_gameBoard game_board (
 					.address		(bback_addr),
 					.clock		(CLOCK_50),
-					.q				(bback_out)
+					.q				(bback_out[1])
 				);
 	
 	rom_gameTitle title_screen (
 					.address		(bback_addr),
 					.clock		(CLOCK_50),
-					.q				(tback_out)
+					.q				(bback_out[0])
+				);
+				
+	rom_winText win_text (
+					.address		(w_addr),
+					.clock		(CLOCK_50),
+					.q				(bback_out[3])
+				);
+				
+	rom_player players (
+					.address		(p_addr),
+					.clock		(CLOCK_50),
+					.q				(bback_out[2])
 				);
 				
 	// ============================================================================
@@ -115,12 +131,16 @@ module Monopoly (
 	//
 	// ============================================================================
 	
+	reg start, play, cancel;
+	
 	wire [7:0] ps2_key_data;
 	wire ps2_key_pressed;
 	wire ps2_reset = ~KEY[1];
-	wire gameInput = game_input;
+	wire playInput, startInput, cancelInput;
 	
-	reg game_input;
+	assign playInput = SW[7] ? ~KEY[0] : play;
+	assign startInput = SW[7] ? ~KEY[1] : start;
+	assign cancelInput = SW[7] ? ~KEY[2] : cancel;
 	
 	PS2_Controller PS2 (
 		// Inputs
@@ -138,15 +158,21 @@ module Monopoly (
 	
 	always @(posedge CLOCK_50)
 	begin
-		if (ps2_reset)
-			game_input <= 0;
-		if (ps2_key_pressed) begin
-			if (ps2_key_data == 8'h29)
-				game_input <= 1;
-			else
-				game_input <= 0;
-		end else
-			game_input <= 0;
+		if (ps2_reset) begin
+			play <= 0;
+			start <= 0;
+			cancel <= 0;
+		end else if (ps2_key_pressed) begin
+			case (ps2_key_data)
+				8'h29: play <= 1;
+				8'h5A: start <= 1;
+				8'h76: cancel <= 1;
+			endcase
+		end else begin
+			play <= 0;
+			start <= 0;
+			cancel <= 0;
+		end
 	end
 	
 	// ============================================================================
@@ -158,17 +184,16 @@ module Monopoly (
 	wire [2:0] index;
 	wire ld_back;
 	wire [11:0] c;
-	wire select_rom;
+	wire [1:0] select_rom;
 	
-	ControlPath cp (.clk(CLOCK_50), .Input(~KEY[0]), .start(~KEY[1]), .cancel(~KEY[2]),
-							.bd_addr(bd_addr), .bd_read(bd_out), .bd_write(bd_in),
-							.bback_addr(bback_addr), /*.bback_read(bback_out),*/ .d1(d1_val), .d2(d2_val), 
+	ControlPath cp (.clk(CLOCK_50), .Input(playInput), .start(startInput), .cancel(cancelInput),
+							.w_addr(w_addr), .p_addr(p_addr), .bback_addr(bback_addr), .d1(d1), .d2(d2), 
 							.x(x), .y(y), .c(c), .plot(vga_wren), .index(index), .ld_bback(ld_back),
 							.fast_fwd(SW[9]), .select_rom(select_rom),
 							.hex(HEX0), .hex2(HEX1), .hex3(HEX2), .hex4(HEX3), .hex5(HEX4), .hex6(HEX5)
 							);
 	
-	assign colour = ld_back ? (select_rom ? bback_out : tback_out) : c;
+	assign colour = ld_back ? bback_out[select_rom] : c;
 
 	// Create an Instance of a VGA controller - there can be only one!
 	// Define the number of colours as well as the initial background
