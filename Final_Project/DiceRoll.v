@@ -1,6 +1,5 @@
 module RollDice (clk, q);
 	input clk;
-	//output reg [2:0] q;
 	output [2:0] q;
 	
 	reg [2:0] count;
@@ -11,20 +10,9 @@ module RollDice (clk, q);
 			count = 3'b001;
 		else
 			count = count + 3'b001;
-		/*if (readEn) begin
-			if (count == 3'd7)
-				q <= 3'd6;
-			else if (count == 3'd0)
-				q <= 3'd1;
-			else
-				q = count;
-		end*/
 	end
-	assign q = count;
 	
-	//always @(*)
-		//if (readEn)
-			//q <= count;
+	assign q = count;
 
 endmodule
 

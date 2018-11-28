@@ -158,7 +158,7 @@ module Datapath (clk, reset, turn, spot, ld_dp, x_inc, y_inc,
 					end
 				endcase
 			end else if (draw_dice) begin
-				y <= 8'd164;// - turn * 6'd52;
+				y <= 8'd164;
 				if (dice_num == 0)
 					x <= 9'd123;//x <= 9'd99;
 				else
@@ -184,9 +184,6 @@ module Datapath (clk, reset, turn, spot, ld_dp, x_inc, y_inc,
 					2'b11: x <= 9'd300;
 				endcase
 			end
-			//c = { 8'b0, 8'b11111111, 8'b0 };
-			
-			
 			
 		end
 	end

@@ -1,15 +1,12 @@
 module ControlPath (clk, Input, start, cancel,
 							bback_addr, w_addr, p_addr,
 							d1, d2, x, y, c, plot, select_rom,
-							hex, hex2, hex3, hex4, hex5, hex6,
-							index, ld_bback, fast_fwd);
+							ld_bback, fast_fwd);
 	input clk, Input, start, cancel, fast_fwd;
 	input [2:0] d1, d2;
 	
-	output [2:0] index;
 	output [1:0] select_rom;
 	output ld_bback;
-	output [6:0] hex, hex2, hex3, hex4, hex5, hex6;
 	output reg [8:0] x;
 	output reg [7:0] y;
 	output reg [11:0] c;
@@ -19,13 +16,12 @@ module ControlPath (clk, Input, start, cancel,
 	output reg [7:0] p_addr;
 	
 	wire [4:0] spot [4];
-	wire ld_x, ld_y, ld_back, ld_spot, ld_score, ld_progress, ld_dp;
+	wire ld_x, ld_y, ld_back, ld_spot, ld_progress, ld_score, ld_dp;
 	wire x_mv, y_mv, sc_neg;
 	wire reset;
 	wire Right, Down;
 	wire [2:0] x_inc, y_inc;
 	wire [2:0] turn;
-	wire plotRequest;
 	wire [5:0] moveSpaces [4];
 	
 	wire [12:0] score [4];
@@ -40,32 +36,29 @@ module ControlPath (clk, Input, start, cancel,
 	wire frc;
 	wire [8:0] frc_x;
 	wire [7:0] frc_y;
-	wire [1:0] win = score[0] > score[1] && score[0] > score[2] && score[0] > score[3] ? 0 :
-							score[1] > score[0] && score[1] > score[2] && score[1] > score[3] ? 1 :
-							score[2] > score[0] && score[2] > score[1] && score[2] > score[3] ? 2 : 3;
+	wire [1:0] win = score[0] >= score[1] && score[0] >= score[2] && score[0] >= score[3] ? 0 :
+							score[1] >= score[0] && score[1] >= score[2] && score[1] >= score[3] ? 1 :
+							score[2] >= score[0] && score[2] >= score[1] && score[2] >= score[3] ? 2 : 3;
 	
 	assign sc_dg_0 = score[turn] / 1000;
 	assign sc_dg_1 = (score[turn] / 100) % 10;
 	assign sc_dg_2 = (score[turn] / 10) % 10;
 	assign sc_dg_3 = score[turn] % 10;
 	
-	assign plot = plotRequest;
-	
 	ControlFSM ctrl (.clk(clk), .Input(Input), .start(start), .cancel(cancel),
-							.playerSpot(spot[turn]), .d1_val(d1), .d2_val(d2),
-							.Right(Right), .Down(Down), .reset(reset), .plot_to_vga(plotRequest),
+							.playerSpot(spot[turn]), .d1_val(d1), .d2_val(d2), .p_color(c_out[turn]),
+							.Right(Right), .Down(Down), .reset(reset), .plot_to_vga(plot),
 							.ld_x(ld_x), .ld_y(ld_y), .ld_back(ld_back), .ld_spot(ld_spot),
+							.ld_score(ld_score), .ld_progress(ld_progress), .ld_dp(ld_dp),
 							.x_mv(x_mv), .y_mv(y_mv), .playerTurn(turn), .moveSpaces(moveSpaces[turn]),
-							.x_inc(x_inc), .y_inc(y_inc), .ld_dp(ld_dp),
-							.scoreChange(scoreChange), .ld_score(ld_score), .ld_progress(ld_progress), 
-							.sc_neg(sc_neg), .playerProgress(progress[turn]),
-							.sc_clr(sc_clr), .dp_x_inc(dp_x_inc), .dp_y_inc(dp_y_inc), .playerScore(score[turn]), 
+							.x_inc(x_inc), .y_inc(y_inc), .dp_x_inc(dp_x_inc), .dp_y_inc(dp_y_inc),
+							.scoreChange(scoreChange), .sc_neg(sc_neg), .playerProgress(progress[turn]),
+							.sc_clr(sc_clr), .playerScore(score[turn]), 
 							.dg(digitNum), .ld_dp_p(ld_dp_p), .fast_fwd(fast_fwd),
 							.sc_dg_0(sc_dg_0), .sc_dg_1(sc_dg_1), .sc_dg_2(sc_dg_2), .sc_dg_3(sc_dg_3),
 							.draw_dice(draw_dice), .dice_clr(dice_clr), .dice_num(dice_num),
 							.frc(frc), .frc_x(frc_x), .frc_y(frc_y), .select_rom(select_rom),
-							.draw_win(draw_win),
-							.hex(hex), .hex2(hex2)
+							.draw_win(draw_win)
 							);
 							
 	wire [8:0] dp_x_out;
@@ -97,7 +90,7 @@ module ControlPath (clk, Input, start, cancel,
 					.x_mv(x_mv), .y_mv(y_mv), .x_inc(x_inc), .y_inc(y_inc), .moveSpaces(moveSpaces[0]),
 					.X_Out(x_out[0]), .Y_Out(y_out[0]), .C_Out(c_out[0]), .spot(spot[0]), 
 					.ld_score(ld_score), .ld_progress(ld_progress), .sc_neg(sc_neg), .scoreChange(scoreChange), 
-					.score(score[0]), .progress(progress[0])//, .hex(hex3)
+					.score(score[0]), .progress(progress[0])
 					);
 	defparam p0.player = 0;
 					
@@ -106,7 +99,7 @@ module ControlPath (clk, Input, start, cancel,
 					.x_mv(x_mv), .y_mv(y_mv), .x_inc(x_inc), .y_inc(y_inc), .moveSpaces(moveSpaces[1]),
 					.X_Out(x_out[1]), .Y_Out(y_out[1]), .C_Out(c_out[1]), .spot(spot[1]), 
 					.ld_score(ld_score), .ld_progress(ld_progress), .sc_neg(sc_neg), .scoreChange(scoreChange), 
-					.score(score[1]), .progress(progress[1])//, .hex(hex4)
+					.score(score[1]), .progress(progress[1])
 					);
 	defparam p1.player = 1;
 	
@@ -115,7 +108,7 @@ module ControlPath (clk, Input, start, cancel,
 					.x_mv(x_mv), .y_mv(y_mv), .x_inc(x_inc), .y_inc(y_inc), .moveSpaces(moveSpaces[2]),
 					.X_Out(x_out[2]), .Y_Out(y_out[2]), .C_Out(c_out[2]), .spot(spot[2]), 
 					.ld_score(ld_score), .ld_progress(ld_progress), .sc_neg(sc_neg), .scoreChange(scoreChange), 
-					.score(score[2]), .progress(progress[2])//, .hex(hex5)
+					.score(score[2]), .progress(progress[2])
 					);
 	defparam p2.player = 2;
 				
@@ -124,29 +117,12 @@ module ControlPath (clk, Input, start, cancel,
 					.x_mv(x_mv), .y_mv(y_mv), .x_inc(x_inc), .y_inc(y_inc), .moveSpaces(moveSpaces[3]),
 					.X_Out(x_out[3]), .Y_Out(y_out[3]), .C_Out(c_out[3]), .spot(spot[3]), 
 					.ld_score(ld_score), .ld_progress(ld_progress), .sc_neg(sc_neg), .scoreChange(scoreChange), 
-					.score(score[3]), .progress(progress[3])//, .hex(hex6)
+					.score(score[3]), .progress(progress[3])
 					);	
 	defparam p3.player = 3;
 	
-	HEX_Decoder h6 (score[turn][12:9], hex6);
-	HEX_Decoder h5 (score[turn][8:4], hex5);
-	HEX_Decoder h4 (score[turn][3:0], hex4);
-	
-	//reg [2:0] i;
-	//reg [7:0] j;
-	/*wire [23:0] bback [8];
-	assign bback[0] = bback_read[23:0];
-	assign bback[1] = bback_read[47:24];
-	assign bback[2] = bback_read[71:48];
-	assign bback[3] = bback_read[95:72];
-	assign bback[4] = bback_read[119:96];
-	assign bback[5] = bback_read[143:120];
-	assign bback[6] = bback_read[167:144];
-	assign bback[7] = bback_read[191:168];*/
-	
 	always @(*)
 	begin
-		//bback_addr = y_out[turn] * 9'd320 + x_out[turn];
 		if (ld_dp) begin
 			x <= dp_x_out;
 			y <= dp_y_out;
@@ -163,7 +139,6 @@ module ControlPath (clk, Input, start, cancel,
 		
 	end
 	
-	assign index = 0;
 	assign ld_bback = ld_back;
 
 endmodule
