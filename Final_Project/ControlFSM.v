@@ -1,5 +1,5 @@
 module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right, Down, reset, plot_to_vga,
-							ld_x, ld_y, ld_back, ld_spot, x_mv, y_mv, playerTurn, x_inc, y_inc, p_color,
+							ld_x, ld_y, ld_back, ld_spot, x_mv, y_mv, playerTurn, x_inc, y_inc,
 							moveSpaces, scoreChange, ld_score, ld_progress, sc_neg, playerProgress,
 							ld_dp, sc_clr, dp_x_inc, dp_y_inc, playerScore, dg, ld_dp_p, draw_win,
 							sc_dg_0, sc_dg_1, sc_dg_2, sc_dg_3, fast_fwd, draw_dice, dice_clr, dice_num,
@@ -9,7 +9,6 @@ module ControlFSM (clk, Input, start, cancel, playerSpot, d1_val, d2_val, Right,
 	
 	input [31:0] playerProgress;
 	input [12:0] playerScore;
-	input [11:0] p_color;
 	input [5:0] moveSpaces;
 	input [4:0] playerSpot;
 	input [2:0] d1_val, d2_val;

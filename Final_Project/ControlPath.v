@@ -46,7 +46,7 @@ module ControlPath (clk, Input, start, cancel,
 	assign sc_dg_3 = score[turn] % 10;
 	
 	ControlFSM ctrl (.clk(clk), .Input(Input), .start(start), .cancel(cancel),
-							.playerSpot(spot[turn]), .d1_val(d1), .d2_val(d2), .p_color(c_out[turn]),
+							.playerSpot(spot[turn]), .d1_val(d1), .d2_val(d2),
 							.Right(Right), .Down(Down), .reset(reset), .plot_to_vga(plot),
 							.ld_x(ld_x), .ld_y(ld_y), .ld_back(ld_back), .ld_spot(ld_spot),
 							.ld_score(ld_score), .ld_progress(ld_progress), .ld_dp(ld_dp),
